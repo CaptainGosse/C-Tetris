@@ -6,15 +6,30 @@
 
 uint16_t s_grid[20];
 uint16_t *p_grid[20];
+/*
+    15 bit is 
+*/
+const uint8_t NEW_BLOCK = 0x1;
 
 uint8_t coords[8]; //x, y
 
-uint8_t flag = 1;
-
-int fig = 0;
+uint8_t flag = 0;
+/*
+    7 
+    6 
+    5 END_GAME
+    4 COLISION  
+    3 
+    2 
+    1 
+    0
+*/
 
 const uint8_t COLISION_MASK  = 0x10;
 const uint8_t END_GAME_MASK = 0x20;
+
+
+
 
 const uint8_t figures[7][8] = {
     {4,1,4,0,3,1,5,1},
@@ -45,10 +60,10 @@ void show(){
 }
 
 void printBlock(uint8_t *x, uint8_t *y){
-    uint16_t b = 1;
-    b<<=*x;
-    //*p_grid[*y]|=1<<*x;
-    *p_grid[*y]|=b;
+    //uint16_t b = 1;
+    //b<<=*x;
+    *p_grid[*y]|=1<<*x;
+    //*p_grid[*y]|=b;
 }
 
 
@@ -61,9 +76,10 @@ void printTetris(uint8_t *fig){
 
 
 void clearBlock(uint8_t *x, uint8_t *y){
-    uint16_t b = 1;
-    b<<=*x;
-    *p_grid[*y]^=b;
+    //uint16_t b = 1;
+    //b<<=*x;
+    //p_grid[*y]^=b;
+    *p_grid[*y]^=1<<*x;
 }
 
 void clearTetris(uint8_t *fig){
@@ -86,7 +102,7 @@ void tetrisDown(uint8_t *fig, uint8_t *f){
 
 
 void setCoords(){
-    if(fig > 6) {
+    if((*p_grid[0]) != 0) {
         flag|=END_GAME_MASK;
         return;
     }
