@@ -51,12 +51,8 @@ void show(){
     for(int i = 0, j = 0; i < 20; i++){
         for(j = 0; j < 10; j++){
             if(((*p_grid[i])&l) == l){
-                //printf("*p_grid = %d ", *p_grid[i]);
-                //printf("Print point at x = %d, y = %d\n", j, i);
-                //mvaddch(i , j+ 10, '#');
                 screenBuf[j] = &BLOCK;
             }else{
-                //mvaddch(i, j+ 10, '.');
                 screenBuf[j] = &EMPTY;
             }
             l<<=1;
@@ -67,10 +63,7 @@ void show(){
 }
 
 void printBlock(uint8_t *x, uint8_t *y){
-    //uint16_t b = 1;
-    //b<<=*x;
     *p_grid[*y]|=1<<*x;
-    //*p_grid[*y]|=b;
 }
 
 
@@ -83,9 +76,6 @@ void printTetris(uint8_t *fig){
 
 
 void clearBlock(uint8_t *x, uint8_t *y){
-    //uint16_t b = 1;
-    //b<<=*x;
-    //p_grid[*y]^=b;
     *p_grid[*y]^=1<<*x;
 }
 
@@ -129,13 +119,7 @@ void checkColision(){
 
 void rotateTetris(){
     int8_t buf[8];
-    for(int i =0; i < 8;i+=2){
-        //buf[i] = coords[i] - coords[0];
-        //buf[i + 1] = coords[i + 1] - coords[1];
-        //int8_t t = buf[i];
-        //buf[i] = (buf[i + 1] * -1) + coords[0];
-        //buf[i + 1] = t + coords[1];
-
+    for(uint8_t i =0; i < 8;i+=2){
         buf[i] = coords[1] + coords[0] - coords[i + 1];
         buf[i+1] = coords[i] -coords[0] + coords[1];
         if(buf[i + 1] < 0 ) return;
@@ -143,7 +127,7 @@ void rotateTetris(){
     }
 
 //x = -(y - y0) + y0 = -y + 2y0
-    for(int i = 0; i < 8; i++){
+    for(uint8_t i = 0; i < 8; i++){
         coords[i] = buf[i];
         coords[i+1] = buf[i+1];
     }
