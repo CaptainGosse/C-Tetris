@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <stdint.h>
-#include <ncurses.h>
 #include <unistd.h>
 #include <stdlib.h>
 
 uint16_t s_grid[20];
 uint16_t *p_grid[20];
+
+char *screenBuf[10];
+char BLOCK = '#';
+char EMPTY = '.';
 /*
     15 bit is 
 */
@@ -41,22 +44,26 @@ const uint8_t figures[7][8] = {
     {4,1,4,0,4,2,3,2}
 };
 
+
 void show(){
     uint16_t l = 1;
+    printf("\033[2j\033[H\n");
     for(int i = 0, j = 0; i < 20; i++){
         for(j = 0; j < 10; j++){
             if(((*p_grid[i])&l) == l){
                 //printf("*p_grid = %d ", *p_grid[i]);
                 //printf("Print point at x = %d, y = %d\n", j, i);
-                mvaddch(i , j+ 10, '#');
+                //mvaddch(i , j+ 10, '#');
+                screenBuf[j] = &BLOCK;
             }else{
-                mvaddch(i, j+ 10, '.');
+                //mvaddch(i, j+ 10, '.');
+                screenBuf[j] = &EMPTY;
             }
             l<<=1;
         }
         l = 1;
+        printf("\t\t\t%c%c%c%c%c%c%c%c%c%c\n", *screenBuf[0], *screenBuf[1], *screenBuf[2], *screenBuf[3], *screenBuf[4], *screenBuf[5], *screenBuf[6], *screenBuf[7], *screenBuf[8], *screenBuf[9]);
     }
-    refresh();
 }
 
 void printBlock(uint8_t *x, uint8_t *y){
@@ -110,10 +117,6 @@ void setCoords(){
     for(int i = 0; i < 8; i++){
         coords[i] = figures[r][i];
     }
-    mvprintw(0,21, "             ");
-    mvprintw(1,21, "             ");
-    mvprintw(2,21, "             ");
-    mvprintw(3,21, "             ");
 }
 
 void checkColision(){
@@ -171,7 +174,7 @@ void horMoveRight(){
 
 
 void checkISR(char c){
-    if(c == ERR) return;
+    if(c == 'p') return;
     clearTetris(coords);
     if(c == 'a'){
        horMoveLeft(); 
@@ -182,7 +185,6 @@ void checkISR(char c){
     if(c == 'w'){
         rotateTetris();
     }
-    flushinp();
 }
 
 void checkTetris(){
@@ -202,12 +204,6 @@ void checkTetris(){
 
 
 int main(void){
-    initscr();
-    mvvline(0, 9, ACS_VLINE, 20);
-    mvvline(0,20, ACS_VLINE, 20);
-    refresh();
-    timeout(100);
-    noecho();
     for(int i = 0; i < 20; i++){
         s_grid[i] = 0;
         p_grid[i] = &s_grid[i];
@@ -217,24 +213,13 @@ int main(void){
     do{
         printTetris(coords);
         show();
-        //sleep(1);
-        napms(300);
-        checkISR(getch());
+        sleep(1);
+        //checkISR(getch());
         printTetris(coords);
         clearTetris(coords);
         tetrisDown(coords, &flag);
-        mvprintw(0,21, "X = %d, Y = %d", coords[0], coords[1]);
-        mvprintw(1,21, "X = %d, Y = %d", coords[2], coords[3]);
-        mvprintw(2,21, "X = %d, Y = %d", coords[4], coords[5]);
-        mvprintw(3,21, "X = %d, Y = %d", coords[6], coords[7]); 
-        refresh();
         checkColision();
         checkTetris();
     }while((flag & END_GAME_MASK) != END_GAME_MASK);
-    mvprintw(4,21, "End game");
-    refresh();
-    timeout(-1);
-    getch();
-    endwin();
     return 0;
 }
