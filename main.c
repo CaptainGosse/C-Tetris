@@ -35,7 +35,7 @@ uint8_t flag = 0x20;
 */
 
 const uint8_t COLISION_MASK  = 0x10;
-const uint8_t END_GAME_MASK = 0x20;
+const uint8_t GAME_LOOP_MASK = 0x20;
 
 const uint8_t figures[7][8] = {
     {4,1,4,0,3,1,5,1},
@@ -50,7 +50,7 @@ const uint8_t figures[7][8] = {
 
 void show(){
     uint16_t l = 1;
-    printf("\033[2j\033[H\n");
+    printf("\033[H\n");
     for(uint8_t i = 0, j = 0; i < 20; i++){
         for(j = 0; j < 10; j++){
             if(((*p_grid[i])&l) == l){
@@ -103,7 +103,7 @@ void tetrisDown(uint8_t *fig, uint8_t *f){
 
 void setCoords(){
     if((*p_grid[0]) != 0) {
-        flag^=END_GAME_MASK;
+        flag&=~(GAME_LOOP_MASK);
         return;
     }
     int r = rand() % 7;
@@ -126,11 +126,11 @@ void rotateTetris(){
         buf[i] = coords[1] + coords[0] - coords[i + 1];
         buf[i+1] = coords[i] -coords[0] + coords[1];
         if(buf[i + 1] < 0 ) return;
-        if(!(buf[i] > 0 & buf[i] < 9) || (*p_grid[buf[i+1]] & (1 << (buf[i] - 1)))) return;
+        if(!(buf[i] > -1 && buf[i] < 10) || (*p_grid[buf[i+1]] & (1 << (buf[i] - 1)))) return;
     }
 
 //x = -(y - y0) + y0 = -y + 2y0
-    for(uint8_t i = 0; i < 7; i++){
+    for(uint8_t i = 0; i < 8; i+=2){
         coords[i] = buf[i];
         coords[i+1] = buf[i+1];
     }
@@ -157,12 +157,6 @@ void horMoveRight(){
     coords[2]++;
     coords[4]++;
     coords[6]++;
-}
-
-
-void checkISR(char c){
-    if(c == 'p') return;
-
 }
 
 void checkTetris(){
@@ -196,7 +190,7 @@ void *gameLoop(void *data){
         tetrisDown(coords, &flag);
         checkColision();
         checkTetris();
-    }while(flag & END_GAME_MASK);
+    }while(flag & GAME_LOOP_MASK);
 
     return NULL;
 }
@@ -209,7 +203,7 @@ void *userInput(void *data){
     t.c_lflag&= ~(ICANON | ECHO);
     tcsetattr(STDIN_FILENO, TCSANOW, &t);
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
-    while(flag & END_GAME_MASK){
+    while(flag & GAME_LOOP_MASK){
         c = getchar();
         if(c != EOF){ 
             pthread_mutex_lock(&mtx);
