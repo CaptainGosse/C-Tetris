@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
-#include <stdlib.h>
-#include <pthread.h>
+//#include <stdlib.h>
 #include <termios.h>
 #include <fcntl.h>
 
@@ -10,11 +9,9 @@
 uint16_t s_grid[20];
 uint16_t *p_grid[20];
 
-pthread_mutex_t mtx;
+//int score = 0;
+//uint16_t nextBlock = 0xACE1;
 
-char *screenBuf[10];
-char BLOCK = '#';
-char EMPTY = '.';
 /*
     15 bit is 
 */
@@ -49,20 +46,25 @@ const uint8_t figures[7][8] = {
 
 
 void show(){
-    uint16_t l = 1;
-    printf("\033[H\n");
-    for(uint8_t i = 0, j = 0; i < 20; i++){
-        for(j = 0; j < 10; j++){
-            if(((*p_grid[i])&l) == l){
-                screenBuf[j] = &BLOCK;
-            }else{
-                screenBuf[j] = &EMPTY;
-            }
-            l<<=1;
-        }
-        l = 1;
-        printf("\t\t\t%c%c%c%c%c%c%c%c%c%c\n", *screenBuf[0], *screenBuf[1], *screenBuf[2], *screenBuf[3], *screenBuf[4], *screenBuf[5], *screenBuf[6], *screenBuf[7], *screenBuf[8], *screenBuf[9]);
+  const uint8_t BLOCK = '#';
+  const uint8_t EMPTY = '.';
+  uint16_t l = 1;
+  uint8_t cursor = 0;
+  char screenBuf[256];
+  screenBuf[cursor++] = '\033';
+  screenBuf[cursor++] = '[';
+  screenBuf[cursor++] = 'H';
+  // printf("\033[H\n");
+  for (uint8_t i = 0, j = 0; i < 20; i++) {
+    for (j = 0; j < 10; j++) {
+      screenBuf[cursor++] = (*p_grid[i]) & l ? BLOCK : EMPTY;
+      l <<= 1;
     }
+    screenBuf[cursor++] = '\n';
+    l = 1;
+  }
+    write(1, screenBuf, cursor);
+
 }
 
 void printBlock(uint8_t *x, uint8_t *y){
@@ -79,7 +81,7 @@ void printTetris(uint8_t *fig){
 
 
 void clearBlock(uint8_t *x, uint8_t *y){
-    *p_grid[*y]^=1<<*x;
+    *p_grid[*y]&=~(1<<*x);
 }
 
 void clearTetris(uint8_t *fig){
@@ -101,21 +103,24 @@ void tetrisDown(uint8_t *fig, uint8_t *f){
 }
 
 
-void setCoords(){
+void setCoords(uint16_t *t){
     if((*p_grid[0]) != 0) {
         flag&=~(GAME_LOOP_MASK);
         return;
     }
-    int r = rand() % 7;
     for(int i = 0; i < 8; i++){
-        coords[i] = figures[r][i];
+        coords[i] = figures[*t % 7][i];
     }
+    *t^= *t  >> 7;
+    *t^= *t << 9;
+    *t^= *t >>13;
+
 }
 
-void checkColision(){
+void checkColision(uint16_t *nextBlock){
     if((flag & COLISION_MASK) == COLISION_MASK){
         printTetris(coords);
-        setCoords();
+        setCoords(nextBlock);
         flag^=COLISION_MASK;
     }
 }
@@ -162,6 +167,7 @@ void horMoveRight(){
 void checkTetris(){
     uint16_t l = 0x3FF;
     uint16_t *b;
+    uint8_t t = 1;
     for(int i = 19; i >= 0; i--){
         if((*p_grid[i] & l) == l){
             b = p_grid[i];
@@ -170,76 +176,55 @@ void checkTetris(){
             }
             p_grid[0] = b;
             *p_grid[0] = 0;
+            //score+= 100 *t;
+            t*=2;
         }
     }
-}
-
-
-void *gameLoop(void *data){
-    
-    setCoords();
-    pthread_mutex_lock(&mtx);
-    do{
-        printTetris(coords);
-        show();
-        pthread_mutex_unlock(&mtx);
-        usleep(500000);
-        pthread_mutex_lock(&mtx);
-        printTetris(coords);
-        clearTetris(coords);
-        tetrisDown(coords, &flag);
-        checkColision();
-        checkTetris();
-    }while(flag & GAME_LOOP_MASK);
-
-    return NULL;
-}
-
-void *userInput(void *data){
-    char c;
-    struct termios t, old;
-    tcgetattr(STDIN_FILENO, &t);
-    old = t;
-    t.c_lflag&= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &t);
-    fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
-    while(flag & GAME_LOOP_MASK){
-        c = getchar();
-        if(c != EOF){ 
-            pthread_mutex_lock(&mtx);
-            clearTetris(coords);
-            if(c == 'a'){
-                horMoveLeft(); 
-            }
-            if(c == 'd'){
-                horMoveRight();
-            }
-            if(c == 'w'){
-                rotateTetris();
-            }
-            printTetris(coords);
-            show();
-            pthread_mutex_unlock(&mtx);
-        }
-        usleep(20000);
-
-    }
-    tcsetattr(STDIN_FILENO, TCSANOW, &old); // restore old settings
-    return NULL;
 }
 
 int main(void){
-    for(int i = 0; i < 20; i++){
-        s_grid[i] = 0;
-        p_grid[i] = &s_grid[i];
-    }
+  for (int i = 0; i < 20; i++) {
+    s_grid[i] = 0;
+    p_grid[i] = &s_grid[i];
+  }
+  uint16_t nextBlock = 0xACE1;
 
-    pthread_t loop;
-    pthread_t input;
-    pthread_mutex_init(&mtx, NULL);
-    pthread_create(&loop, NULL, gameLoop, NULL);
-    pthread_create(&input, NULL, userInput, NULL);
-    pthread_join(input, NULL);
-    pthread_join(loop, NULL);
-    return 0;
+  setCoords(&nextBlock);
+  uint8_t tick = 0;
+  int c;
+  struct termios t, old;
+  tcgetattr(STDIN_FILENO, &t);
+  old = t;
+  t.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, 0, &t);
+  fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+  do {
+    printTetris(coords);
+    show();
+    if(tick % 50 == 0){
+      clearTetris(coords);
+      tetrisDown(coords, &flag);
+      tick = 0;
+    }
+    c = getchar();
+    if (c != EOF) {
+      clearTetris(coords);
+      if (c == 'a') {
+        horMoveLeft();
+      }
+      if (c == 'd') {
+        horMoveRight();
+      }
+      if (c == 'w') {
+        rotateTetris();
+      }
+    }
+    printTetris(coords);
+    show();
+    checkColision(&nextBlock);
+    checkTetris();
+    usleep(10000);
+    tick++;
+  }while (flag & GAME_LOOP_MASK);
+  tcsetattr(STDIN_FILENO, TCSANOW, &old); // restore old settings
 }
