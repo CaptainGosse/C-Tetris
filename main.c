@@ -8,7 +8,7 @@
 
 uint16_t s_grid[20];
 uint16_t *p_grid[20];
-
+int score = 0;
 //int score = 0;
 //uint16_t nextBlock = 0xACE1;
 
@@ -164,22 +164,22 @@ void horMoveRight(){
     coords[6]++;
 }
 
-void checkTetris(){
-    uint16_t l = 0x3FF;
-    uint16_t *b;
-    uint8_t t = 1;
-    for(int i = 19; i >= 0; i--){
-        if((*p_grid[i] & l) == l){
-            b = p_grid[i];
-            for(int j = i; j >= 1;j--){
-              p_grid[j] = p_grid[j - 1];  
-            }
-            p_grid[0] = b;
-            *p_grid[0] = 0;
-            //score+= 100 *t;
-            t*=2;
-        }
-    }
+void checkTetris(uint8_t *speed){
+  uint16_t l = 0x3FF;
+  uint16_t *b;
+  for(int i = 19; i >= 0; i--){
+      if((*p_grid[i] & l) == l){
+          b = p_grid[i];
+          for(int j = i; j >= 1;j--){
+            p_grid[j] = p_grid[j - 1];  
+          }
+          p_grid[0] = b;
+          *p_grid[0] = 0;
+          score+= 100;
+      }
+  }
+  printf("Score: %d", score);
+  *speed-=(score / 1000);
 }
 
 int main(void){
@@ -188,7 +188,8 @@ int main(void){
     p_grid[i] = &s_grid[i];
   }
   uint16_t nextBlock = 0xACE1;
-
+  uint8_t speed = 20;
+  printf("Score: 0");
   setCoords(&nextBlock);
   uint8_t tick = 0;
   int c;
@@ -201,10 +202,11 @@ int main(void){
   do {
     printTetris(coords);
     show();
-    if(tick % 50 == 0){
+    if(tick % speed == 0){
       clearTetris(coords);
       tetrisDown(coords, &flag);
       tick = 0;
+      printf("Speed: %d", speed);
     }
     c = getchar();
     if (c != EOF) {
@@ -219,12 +221,24 @@ int main(void){
         rotateTetris();
       }
     }
-    printTetris(coords);
-    show();
+    // printTetris(coords);
+    // show();
+    clearTetris(coords);
     checkColision(&nextBlock);
-    checkTetris();
+    checkTetris(&speed);
     usleep(10000);
     tick++;
   }while (flag & GAME_LOOP_MASK);
   tcsetattr(STDIN_FILENO, TCSANOW, &old); // restore old settings
 }
+
+// printTetris(coords);
+// show();
+// pthread_mutex_unlock(&mtx);
+// usleep(500000);
+// pthread_mutex_lock(&mtx);
+// printTetris(coords);
+// clearTetris(coords);
+// tetrisDown(coords, &flag);
+// checkColision();
+// checkTetris();
