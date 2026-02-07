@@ -129,11 +129,13 @@ void checkTetris(uint16_t **p_grid, uint16_t *score, uint8_t *speed, uint8_t *sc
           }
           p_grid[0] = b;
           *p_grid[0] = 0;
-          *score = *score + 1;
+          if(*score < UINT16_MAX)
+            *score = *score + 1;
+          i = 19;
           screen[223] = '0' + (*score / 100);
           screen[224] = '0' + ((*score / 10) % 10);
           screen[225] = '0' + (*score % 10);
-          i = 19;
+
       }
   }
 }
@@ -145,7 +147,6 @@ int main(void){
     s_grid[i] = 0;
     p_grid[i] = &s_grid[i];
   }
-  //uint16_t nextBlock = 0xACE1;
   uint16_t nextBlock = (uint16_t)time(NULL);
   uint8_t speed = 20;
   uint8_t coords[8]; // x, y
@@ -155,7 +156,7 @@ int main(void){
   int8_t input_size = 0;
   struct termios t, old;
   uint16_t score = 0;
-  uint8_t screenBuf[256];
+  uint8_t screenBuf[226];
   screenBuf[0] = '\033';
   screenBuf[1] = '[';
   screenBuf[2] = 'H';
@@ -187,5 +188,5 @@ int main(void){
     usleep(10000);
     tick++;
   }while (flag & GAME_LOOP_MASK);
-  tcsetattr(STDIN_FILENO, TCSANOW, &old); // restore old settings
+  tcsetattr(STDIN_FILENO, TCSANOW, &old);
 }
