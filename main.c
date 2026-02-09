@@ -5,16 +5,16 @@
 #include <fcntl.h>
 
 const uint8_t COLISION_MASK  = 0x10;
-const uint8_t GAME_LOOP_MASK = 0x20;
+const uint8_t GAME_LOOP_MASK = 0x20; 
 
 static const uint8_t figures[7][8] = {
-    {4,1,4,0,3,1,5,1},
-    {4,0,5,0,3,0,6,0}, 
-    {4,0,4,1,5,0,5,1},  
-    {4,1,4,0,3,1,5,0},
-    {4,1,4,0,3,0,5,1},
-    {4,1,4,0,4,2,5,0},
-    {4,1,4,0,4,2,3,2}
+    {4,1,4,0,3,1,5,1}, // T piece 
+    {4,0,5,0,3,0,6,0}, // I piece
+    {4,0,4,1,5,0,5,1}, // O piece
+    {4,1,4,0,3,1,5,0}, // S piece 
+    {4,1,4,0,3,0,5,1}, // Z piece
+    {4,1,4,0,4,2,5,0}, // J piece
+    {4,1,4,0,4,2,3,2}  // L piece 
 };
 const uint8_t BLOCK = '#';
 const uint8_t EMPTY = '.';
@@ -25,13 +25,13 @@ void show(uint16_t **p_grid ,uint8_t *screenBuf){
   uint8_t cursor = 3;
     for (uint8_t i = 0, j = 0; i < 20; i++) {
     for (j = 0; j < 10; j++) {
-      screenBuf[cursor++] = (*p_grid[i]) & l ? BLOCK : EMPTY;
+      screenBuf[cursor++] = (*p_grid[i]) & l ? BLOCK : EMPTY; //display the grid
       l <<= 1;
     }
     screenBuf[cursor++] = '\n';
     l = 1;
   }
-  write(1, screenBuf, cursor + 3);
+  write(STDIN_FILENO, screenBuf, cursor + 3);
 }
 
 void printTetris(uint16_t **p_grid, uint8_t *fig){
@@ -67,7 +67,7 @@ void setCoords(uint16_t **p_grid, uint8_t *coords, uint16_t *t, uint8_t *flag){
     for(int i = 0; i < 8; i++){
         coords[i] = figures[*t % 7][i];
     }
-    *t^= *t >> 7;
+    *t^= *t >> 7; //XOR shift for random the piece 
     *t^= *t << 9;
     *t^= *t >>13;
 
@@ -86,7 +86,7 @@ void rotateTetris(uint16_t **p_grid, uint8_t *coords){
     for(uint8_t i =0; i < 8;i+=2){
         buf[i] = coords[1] + coords[0] - coords[i + 1];
         buf[i+1] = coords[i] -coords[0] + coords[1];
-        if(buf[i + 1] < 0 ) return;
+        if(buf[i + 1] < 0 || buf[i + 1] >= 20) return;
         if(!(buf[i] > -1 && buf[i] < 10) || (*p_grid[buf[i+1]] & (1 << buf[i]))) return;
     }
     for(uint8_t i = 0; i < 8; i+=2){
@@ -97,7 +97,7 @@ void rotateTetris(uint16_t **p_grid, uint8_t *coords){
 
 void horMoveLeft(uint16_t **p_grid, uint8_t *coords){
   for(uint8_t i = 0; i < 8; i+=2){
-    if (!(coords[i] > 0) || (*p_grid[coords[i + 1]] & (1 << (coords[i] - 1))))
+    if (!(coords[i] > 0) || (*p_grid[coords[i + 1]] & (1 << (coords[i] - 1)))) //check the border collision and check another block collision
       return;
   }
   coords[0]--;
@@ -109,7 +109,8 @@ void horMoveLeft(uint16_t **p_grid, uint8_t *coords){
 
 void horMoveRight(uint16_t **p_grid, uint8_t *coords){
   for(uint8_t i = 0; i < 8; i+=2){
-    if (!(coords[i] < 9) || (*p_grid[coords[i + 1]] & (1 << (coords[i] + 1))))
+    if (!(coords[i] < 9) ||
+        (*p_grid[coords[i + 1]] & (1 << (coords[i] + 1)))) // check the border collision and check another block collision
       return;
   }
   coords[0]++;
@@ -129,13 +130,16 @@ void checkTetris(uint16_t **p_grid, uint16_t *score, uint8_t *speed, uint8_t *sc
           }
           p_grid[0] = b;
           *p_grid[0] = 0;
-          if(*score < UINT16_MAX)
+          if(*score < UINT16_MAX){
             *score = *score + 1;
+            if(*speed > 6 && (*score % 10 == 0) ){
+              *speed-=1;
+            }
+          }
           i = 19;
-          screen[223] = '0' + (*score / 100);
+          screen[223] = '0' + (*score / 100); //increase score 
           screen[224] = '0' + ((*score / 10) % 10);
           screen[225] = '0' + (*score % 10);
-
       }
   }
 }
@@ -148,26 +152,26 @@ int main(void){
     p_grid[i] = &s_grid[i];
   }
   uint16_t nextBlock = (uint16_t)time(NULL);
-  uint8_t speed = 20;
+  uint8_t speed = 30; // start speed 30 ~ 0.3 sec, every 10 rows the speed increases, max speed 5 ~ 0.05 sec 
   uint8_t coords[8]; // x, y
-  uint8_t flag = 0x20;
+  uint8_t flag = 0x20; // the game is run
   uint8_t tick = 0;
   int8_t c;
   int8_t input_size = 0;
-  struct termios t, old;
+  struct termios t, old; //termios settings for not blocking input
   uint16_t score = 0;
-  uint8_t screenBuf[226];
-  screenBuf[0] = '\033';
+  uint8_t screenBuf[226]; // screen buffer
+  screenBuf[0] = '\033'; // move cursor to left up corner
   screenBuf[1] = '[';
   screenBuf[2] = 'H';
-  screenBuf[223] = '0';
+  screenBuf[223] = '0'; // at first the score is 0, max 999
   screenBuf[224] = '0';
   screenBuf[225] = '0';
   tcgetattr(STDIN_FILENO, &t);
   old = t;
   t.c_lflag &= ~(ICANON | ECHO);
   tcsetattr(STDIN_FILENO, 0, &t);
-  fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
+  fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK); //make terminal not blocking
   setCoords(p_grid, coords, &nextBlock, &flag);
   do {
     printTetris(p_grid, coords);
